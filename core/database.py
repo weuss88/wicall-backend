@@ -4,7 +4,11 @@ from core.config import settings
 
 url = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://").replace("postgres://", "postgresql+asyncpg://")
 
-engine = create_async_engine(url, echo=False)
+engine = create_async_engine(
+    url,
+    echo=False,
+    connect_args={"statement_cache_size": 0}
+)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 class Base(DeclarativeBase):
