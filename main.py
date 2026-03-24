@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import os
 
 from core.database import init_db
-from routes import auth, campaigns, users
+from routes import auth, campaigns, users, leads
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -25,6 +25,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(campaigns.router, prefix="/campaigns", tags=["Campaigns"])
 app.include_router(users.router, prefix="/users", tags=["Users"])
+app.include_router(leads.router, prefix="/leads", tags=["Leads"])
 
 @app.get("/")
 async def root():

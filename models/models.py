@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, JSON, Text, DateTime, func
+from sqlalchemy import Column, Integer, String, Boolean, JSON, Text, DateTime, func, ForeignKey
 from core.database import Base
 
 class User(Base):
@@ -32,3 +32,14 @@ class Campaign(Base):
     actif           = Column(Boolean, default=True)
     created_at      = Column(DateTime, server_default=func.now())
     updated_at      = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+class Lead(Base):
+    __tablename__ = "leads"
+    id              = Column(Integer, primary_key=True, index=True)
+    conseiller_id   = Column(Integer, ForeignKey("users.id"), nullable=False)
+    campaign_id     = Column(Integer, ForeignKey("campaigns.id"), nullable=False)
+    nom_prospect    = Column(String(100), nullable=True)
+    telephone       = Column(String(20), nullable=True)
+    cp              = Column(String(10), nullable=True)
+    commentaire     = Column(Text, nullable=True)
+    created_at      = Column(DateTime, server_default=func.now())
