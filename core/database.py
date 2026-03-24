@@ -18,7 +18,7 @@ class Base(DeclarativeBase):
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Migration: ajout colonnes leads si elles n'existent pas
+        # Migrations incrementales
         for col_sql in [
             "ALTER TABLE leads ADD COLUMN IF NOT EXISTS civilite VARCHAR(10)",
             "ALTER TABLE leads ADD COLUMN IF NOT EXISTS prenom VARCHAR(50)",
@@ -28,6 +28,8 @@ async def init_db():
             "ALTER TABLE leads ADD COLUMN IF NOT EXISTS date_rappel VARCHAR(10)",
             "ALTER TABLE leads ADD COLUMN IF NOT EXISTS heure_rappel VARCHAR(5)",
             "ALTER TABLE leads ADD COLUMN IF NOT EXISTS statut VARCHAR(20) DEFAULT 'en_attente'",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_owner BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS pages_access JSONB",
         ]:
             await conn.execute(text(col_sql))
 
