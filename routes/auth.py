@@ -36,7 +36,14 @@ async def login(form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = 
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Compte désactivé")
     token = create_token({"sub": str(user.id), "role": user.role})
-    return {"access_token": token, "token_type": "bearer", "role": user.role, "full_name": user.full_name}
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "role": user.role,
+        "full_name": user.full_name,
+        "is_owner": bool(user.is_owner),
+        "pages_access": user.pages_access,
+    }
 
 @router.get("/me", response_model=UserOut)
 async def me(current_user: User = Depends(get_current_user)):
