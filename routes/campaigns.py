@@ -23,6 +23,7 @@ class CampaignCreate(BaseModel):
     criteres_custom: Optional[List[dict]] = []
     alerte: Optional[str] = None
     actif: bool = True
+    taux_devaluation: Optional[int] = 100
 
 class CampaignOut(CampaignCreate):
     id: int

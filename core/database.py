@@ -30,6 +30,7 @@ async def init_db():
             "ALTER TABLE leads ADD COLUMN IF NOT EXISTS statut VARCHAR(20) DEFAULT 'en_attente'",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_owner BOOLEAN DEFAULT FALSE",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS pages_access JSONB",
+            "ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS taux_devaluation INTEGER DEFAULT 100",
         ]:
             await conn.execute(text(col_sql))
 
