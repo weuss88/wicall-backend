@@ -13,17 +13,17 @@ async def seed():
     from sqlalchemy import text
     async with AsyncSessionLocal() as db:
         for user in [
-            ("manager1", "manager123", "Manager WiCall", "manager"),
-            ("conseiller1", "conseil123", "Marie Dupont", "conseiller"),
-            ("conseiller2", "conseil456", "Pierre Martin", "conseiller"),
+            ("manager1", "manager123", "Manager WiCall", "manager", True),
+            ("conseiller1", "conseil123", "Marie Dupont", "conseiller", False),
+            ("conseiller2", "conseil456", "Pierre Martin", "conseiller", False),
         ]:
             hashed = pwd_context.hash(user[1])
             await db.execute(text(
-                "INSERT INTO users (username, hashed_password, full_name, role, is_active) "
-                "VALUES (:u, :h, :f, :r, true) ON CONFLICT (username) DO UPDATE SET hashed_password=:h"
-            ), {"u": user[0], "h": hashed, "f": user[2], "r": user[3]})
+                "INSERT INTO users (username, hashed_password, full_name, role, is_active, is_owner) "
+                "VALUES (:u, :h, :f, :r, true, :o) ON CONFLICT (username) DO UPDATE SET hashed_password=:h, is_owner=:o"
+            ), {"u": user[0], "h": hashed, "f": user[2], "r": user[3], "o": user[4]})
         await db.commit()
-        print("✅ Comptes créés")
+        print("Comptes créés")
 
 if __name__ == "__main__":
     asyncio.run(seed())
