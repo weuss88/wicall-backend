@@ -3,6 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
+from typing import Optional
 from core.database import get_db
 from core.security import verify_password, create_token, hash_password, get_current_user, require_manager
 from models.models import User
@@ -14,6 +15,7 @@ class UserCreate(BaseModel):
     password: str
     full_name: str = ""
     role: str = "conseiller"
+    pages_access: Optional[list] = None
 
 class UserOut(BaseModel):
     id: int
@@ -21,6 +23,8 @@ class UserOut(BaseModel):
     full_name: str
     role: str
     is_active: bool
+    is_owner: bool = False
+    pages_access: Optional[list] = None
     class Config: from_attributes = True
 
 @router.post("/login")
@@ -45,7 +49,7 @@ async def register(data: UserCreate, db: AsyncSession = Depends(get_db),
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Identifiant déjà utilisé")
     user = User(username=data.username, hashed_password=hash_password(data.password),
-                full_name=data.full_name, role=data.role)
+                full_name=data.full_name, role=data.role, pages_access=data.pages_access)
     db.add(user)
     await db.commit()
     await db.refresh(user)
