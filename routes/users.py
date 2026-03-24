@@ -15,16 +15,20 @@ class UserOut(BaseModel):
     full_name: str
     role: str
     is_active: bool
+    is_owner: bool = False
+    pages_access: Optional[list] = None
     class Config: from_attributes = True
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     is_active: Optional[bool] = None
     password: Optional[str] = None
+    role: Optional[str] = None
+    pages_access: Optional[list] = None
 
 @router.get("/", response_model=List[UserOut])
 async def list_users(db: AsyncSession = Depends(get_db), _: User = Depends(require_manager)):
-    result = await db.execute(select(User).where(User.role == "conseiller"))
+    result = await db.execute(select(User))
     return result.scalars().all()
 
 @router.put("/{user_id}", response_model=UserOut)
@@ -40,6 +44,10 @@ async def update_user(user_id: int, data: UserUpdate,
         user.is_active = data.is_active
     if data.password:
         user.hashed_password = hash_password(data.password)
+    if data.role is not None:
+        user.role = data.role
+    if data.pages_access is not None:
+        user.pages_access = data.pages_access
     await db.commit()
     await db.refresh(user)
     return user
