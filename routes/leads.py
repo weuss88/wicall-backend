@@ -63,7 +63,6 @@ class LeadOut(BaseModel):
     class Config: from_attributes = True
 
 def _serialize(lead: Lead) -> dict:
-    """Sérialise un lead avec ses relations déjà chargées (pas de requête supplémentaire)."""
     camp = lead.campaign
     user = lead.conseiller
     return {
@@ -90,7 +89,6 @@ def _serialize(lead: Lead) -> dict:
     }
 
 def _query_with_relations():
-    """Requête Lead avec jointures Campaign et User en une seule passe."""
     return select(Lead).options(
         joinedload(Lead.campaign),
         joinedload(Lead.conseiller),
@@ -121,7 +119,6 @@ async def create_lead(data: LeadCreate, db: AsyncSession = Depends(get_db),
     db.add(lead)
     await db.commit()
     await db.refresh(lead)
-    # Charger les relations pour la réponse
     result = await db.execute(_query_with_relations().where(Lead.id == lead.id))
     return _serialize(result.scalar_one())
 
@@ -155,6 +152,16 @@ async def update_lead(lead_id: int, data: LeadUpdate, db: AsyncSession = Depends
     await db.commit()
     result = await db.execute(_query_with_relations().where(Lead.id == lead_id))
     return _serialize(result.scalar_one())
+
+# Manager : supprimer definitivement un lead
+@router.delete("/{lead_id}", status_code=204)
+async def delete_lead(lead_id: int, db: AsyncSession = Depends(get_db),
+                      _: User = Depends(require_manager)):
+    lead = (await db.execute(select(Lead).where(Lead.id == lead_id))).scalar_one_or_none()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead introuvable")
+    await db.delete(lead)
+    await db.commit()
 
 # Stats leads pour un conseiller (compteur)
 @router.get("/me/count")
