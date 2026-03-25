@@ -33,6 +33,10 @@ async def init_db():
             "ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS taux_devaluation INTEGER DEFAULT 100",
         ]:
             await conn.execute(text(col_sql))
+        # S'assurer que manager1 est toujours owner
+        await conn.execute(text(
+            "UPDATE users SET is_owner = TRUE WHERE username = 'manager1'"
+        ))
 
 async def get_db():
     async with AsyncSessionLocal() as session:
