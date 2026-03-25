@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Boolean, JSON, Text, DateTime, func, ForeignKey
+from sqlalchemy.orm import relationship
 from core.database import Base
 
 class User(Base):
@@ -51,3 +52,5 @@ class Lead(Base):
     commentaire     = Column(Text, nullable=True)
     statut          = Column(String(20), default='en_attente', server_default='en_attente')
     created_at      = Column(DateTime, server_default=func.now())
+    campaign        = relationship("Campaign", lazy="noload")
+    conseiller      = relationship("User", lazy="noload")

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
@@ -61,9 +62,10 @@ class LeadOut(BaseModel):
     created_at: datetime
     class Config: from_attributes = True
 
-async def _enrich(lead: Lead, db: AsyncSession) -> dict:
-    camp = (await db.execute(select(Campaign).where(Campaign.id == lead.campaign_id))).scalar_one_or_none()
-    user = (await db.execute(select(User).where(User.id == lead.conseiller_id))).scalar_one_or_none()
+def _serialize(lead: Lead) -> dict:
+    """Sérialise un lead avec ses relations déjà chargées (pas de requête supplémentaire)."""
+    camp = lead.campaign
+    user = lead.conseiller
     return {
         "id": lead.id,
         "campaign_id": lead.campaign_id,
@@ -86,6 +88,13 @@ async def _enrich(lead: Lead, db: AsyncSession) -> dict:
         "statut": lead.statut or "en_attente",
         "created_at": lead.created_at,
     }
+
+def _query_with_relations():
+    """Requête Lead avec jointures Campaign et User en une seule passe."""
+    return select(Lead).options(
+        joinedload(Lead.campaign),
+        joinedload(Lead.conseiller),
+    )
 
 # Conseiller : soumettre un lead
 @router.post("/", response_model=LeadOut)
@@ -112,23 +121,27 @@ async def create_lead(data: LeadCreate, db: AsyncSession = Depends(get_db),
     db.add(lead)
     await db.commit()
     await db.refresh(lead)
-    return await _enrich(lead, db)
+    # Charger les relations pour la réponse
+    result = await db.execute(_query_with_relations().where(Lead.id == lead.id))
+    return _serialize(result.scalar_one())
 
 # Manager : tous les leads
 @router.get("/", response_model=List[LeadOut])
 async def get_all_leads(db: AsyncSession = Depends(get_db),
                         _: User = Depends(require_manager)):
-    leads = (await db.execute(select(Lead).order_by(Lead.created_at.desc()))).scalars().all()
-    return [await _enrich(l, db) for l in leads]
+    result = await db.execute(_query_with_relations().order_by(Lead.created_at.desc()))
+    return [_serialize(l) for l in result.scalars().all()]
 
 # Conseiller : ses propres leads
 @router.get("/me", response_model=List[LeadOut])
 async def get_my_leads(db: AsyncSession = Depends(get_db),
                        current_user: User = Depends(get_current_user)):
-    leads = (await db.execute(
-        select(Lead).where(Lead.conseiller_id == current_user.id).order_by(Lead.created_at.desc())
-    )).scalars().all()
-    return [await _enrich(l, db) for l in leads]
+    result = await db.execute(
+        _query_with_relations()
+        .where(Lead.conseiller_id == current_user.id)
+        .order_by(Lead.created_at.desc())
+    )
+    return [_serialize(l) for l in result.scalars().all()]
 
 # Manager : modifier un lead (champs + statut)
 @router.put("/{lead_id}", response_model=LeadOut)
@@ -140,14 +153,12 @@ async def update_lead(lead_id: int, data: LeadUpdate, db: AsyncSession = Depends
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(lead, field, value)
     await db.commit()
-    await db.refresh(lead)
-    return await _enrich(lead, db)
+    result = await db.execute(_query_with_relations().where(Lead.id == lead_id))
+    return _serialize(result.scalar_one())
 
 # Stats leads pour un conseiller (compteur)
 @router.get("/me/count")
 async def get_my_leads_count(db: AsyncSession = Depends(get_db),
                              current_user: User = Depends(get_current_user)):
-    leads = (await db.execute(
-        select(Lead).where(Lead.conseiller_id == current_user.id)
-    )).scalars().all()
-    return {"count": len(leads)}
+    result = await db.execute(select(Lead).where(Lead.conseiller_id == current_user.id))
+    return {"count": len(result.scalars().all())}
