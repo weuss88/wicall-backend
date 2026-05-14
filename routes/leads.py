@@ -7,6 +7,7 @@ from typing import Optional, List
 from datetime import datetime
 from core.database import get_db
 from core.security import get_current_user, require_manager
+from core.audit import log_action
 from models.models import Lead, User, Campaign
 
 router = APIRouter()
@@ -146,25 +147,31 @@ async def get_my_leads(db: AsyncSession = Depends(get_db),
 # Manager : modifier un lead (champs + statut)
 @router.put("/{lead_id}", response_model=LeadOut)
 async def update_lead(lead_id: int, data: LeadUpdate, db: AsyncSession = Depends(get_db),
-                      _: User = Depends(require_manager)):
+                      current_user: User = Depends(require_manager)):
     lead = (await db.execute(select(Lead).where(Lead.id == lead_id))).scalar_one_or_none()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead introuvable")
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(lead, field, value)
     await db.commit()
+    if data.statut in ('valide', 'supprime'):
+        nom = lead.nom_prospect or '?'
+        detail = data.motif_suppression if data.statut == 'supprime' else None
+        await log_action(db, current_user.id, f"lead_{data.statut}", f"lead #{lead_id} — {nom}", detail)
     result = await db.execute(_query_with_relations().where(Lead.id == lead_id))
     return _serialize(result.scalar_one())
 
 # Manager : supprimer definitivement un lead
 @router.delete("/{lead_id}", status_code=204)
 async def delete_lead(lead_id: int, db: AsyncSession = Depends(get_db),
-                      _: User = Depends(require_manager)):
+                      current_user: User = Depends(require_manager)):
     lead = (await db.execute(select(Lead).where(Lead.id == lead_id))).scalar_one_or_none()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead introuvable")
+    nom = lead.nom_prospect or '?'
     await db.delete(lead)
     await db.commit()
+    await log_action(db, current_user.id, "lead_delete", f"lead #{lead_id} — {nom}")
 
 # Stats leads pour un conseiller (compteur)
 @router.get("/me/count")

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import uuid
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
@@ -7,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from core.config import settings
 from core.database import get_db
-from models.models import User
+from models.models import User, RevokedToken
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -21,7 +22,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 def create_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "jti": str(uuid.uuid4())})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
@@ -30,10 +31,15 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id: str = payload.get("sub")
+        jti: str = payload.get("jti")
         if not user_id:
             raise creds_exception
     except JWTError:
         raise creds_exception
+    if jti:
+        revoked = await db.execute(select(RevokedToken).where(RevokedToken.jti == jti))
+        if revoked.scalar_one_or_none():
+            raise creds_exception
     result = await db.execute(select(User).where(User.id == int(user_id)))
     user = result.scalar_one_or_none()
     if not user or not user.is_active:

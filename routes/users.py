@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from core.database import get_db
 from core.security import require_manager, hash_password
+from core.audit import log_action
 from models.models import User
 
 router = APIRouter()
@@ -33,7 +34,7 @@ async def list_users(db: AsyncSession = Depends(get_db), _: User = Depends(requi
 
 @router.put("/{user_id}", response_model=UserOut)
 async def update_user(user_id: int, data: UserUpdate,
-                      db: AsyncSession = Depends(get_db), _: User = Depends(require_manager)):
+                      db: AsyncSession = Depends(get_db), current_user: User = Depends(require_manager)):
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
@@ -43,7 +44,7 @@ async def update_user(user_id: int, data: UserUpdate,
     if data.is_active is not None:
         user.is_active = data.is_active
     if data.password:
-        if len(data.password) < 8:
+        if len(data.password) < 5:
             raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins 5 caractères")
         user.hashed_password = hash_password(data.password)
     if data.role is not None:
@@ -52,14 +53,22 @@ async def update_user(user_id: int, data: UserUpdate,
         user.pages_access = data.pages_access
     await db.commit()
     await db.refresh(user)
+    changes = []
+    if data.password: changes.append("mdp")
+    if data.role is not None: changes.append(f"role→{data.role}")
+    if data.is_active is not None: changes.append("activé" if data.is_active else "désactivé")
+    if changes:
+        await log_action(db, current_user.id, "user_update", user.username, ", ".join(changes))
     return user
 
 @router.delete("/{user_id}")
-async def delete_user(user_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(require_manager)):
+async def delete_user(user_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_manager)):
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+    username = user.username
     await db.delete(user)
     await db.commit()
+    await log_action(db, current_user.id, "user_delete", username)
     return {"deleted": user_id}

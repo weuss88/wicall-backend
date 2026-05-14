@@ -55,3 +55,19 @@ class Lead(Base):
     created_at           = Column(DateTime, server_default=func.now())
     campaign        = relationship("Campaign", lazy="noload")
     conseiller      = relationship("User", lazy="noload")
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    id         = Column(Integer, primary_key=True, index=True)
+    user_id    = Column(Integer, nullable=True)
+    action     = Column(String(50), nullable=False)
+    cible      = Column(String(200), nullable=True)
+    detail     = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+class RevokedToken(Base):
+    __tablename__ = "revoked_tokens"
+    id         = Column(Integer, primary_key=True, index=True)
+    jti        = Column(String(36), unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
