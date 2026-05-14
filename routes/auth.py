@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 from typing import Optional
 from core.database import get_db
+from core.limiter import limiter
 from core.security import verify_password, create_token, hash_password, get_current_user, require_manager
 from models.models import User
 
@@ -28,7 +29,8 @@ class UserOut(BaseModel):
     class Config: from_attributes = True
 
 @router.post("/login")
-async def login(form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.username == form.username))
     user = result.scalar_one_or_none()
     if not user or not verify_password(form.password, user.hashed_password):
@@ -52,6 +54,8 @@ async def me(current_user: User = Depends(get_current_user)):
 @router.post("/register", response_model=UserOut)
 async def register(data: UserCreate, db: AsyncSession = Depends(get_db),
                    _: User = Depends(require_manager)):
+    if len(data.password) < 8:
+        raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins 8 caractères")
     existing = await db.execute(select(User).where(User.username == data.username))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Identifiant déjà utilisé")

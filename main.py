@@ -2,9 +2,12 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from contextlib import asynccontextmanager
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 import os
 
 from core.database import init_db
+from core.limiter import limiter
 from routes import auth, campaigns, users, leads
 
 @asynccontextmanager
@@ -13,6 +16,8 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="WiCall API", version="1.0.0", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
