@@ -55,7 +55,7 @@ async def me(current_user: User = Depends(get_current_user)):
 async def register(data: UserCreate, db: AsyncSession = Depends(get_db),
                    _: User = Depends(require_manager)):
     if len(data.password) < 8:
-        raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins 8 caractères")
+        raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins 5 caractères")
     existing = await db.execute(select(User).where(User.username == data.username))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Identifiant déjà utilisé")

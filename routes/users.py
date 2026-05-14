@@ -44,7 +44,7 @@ async def update_user(user_id: int, data: UserUpdate,
         user.is_active = data.is_active
     if data.password:
         if len(data.password) < 8:
-            raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins 8 caractères")
+            raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins 5 caractères")
         user.hashed_password = hash_password(data.password)
     if data.role is not None:
         user.role = data.role
