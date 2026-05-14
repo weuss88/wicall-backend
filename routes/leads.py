@@ -38,6 +38,7 @@ class LeadUpdate(BaseModel):
     heure_rappel: Optional[str] = None
     commentaire: Optional[str] = None
     statut: Optional[str] = None
+    motif_suppression: Optional[str] = None
 
 class LeadOut(BaseModel):
     id: int
@@ -59,6 +60,7 @@ class LeadOut(BaseModel):
     heure_rappel: Optional[str]
     commentaire: Optional[str]
     statut: Optional[str]
+    motif_suppression: Optional[str]
     created_at: datetime
     class Config: from_attributes = True
 
@@ -85,6 +87,7 @@ def _serialize(lead: Lead) -> dict:
         "heure_rappel": lead.heure_rappel,
         "commentaire": lead.commentaire,
         "statut": lead.statut or "en_attente",
+        "motif_suppression": lead.motif_suppression,
         "created_at": lead.created_at,
     }
 

@@ -31,6 +31,7 @@ async def init_db():
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_owner BOOLEAN DEFAULT FALSE",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS pages_access JSONB",
             "ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS taux_devaluation INTEGER DEFAULT 100",
+            "ALTER TABLE leads ADD COLUMN IF NOT EXISTS motif_suppression TEXT",
         ]:
             await conn.execute(text(col_sql))
         # S'assurer que manager1 est toujours owner
